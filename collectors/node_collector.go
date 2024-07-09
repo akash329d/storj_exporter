@@ -12,14 +12,14 @@ import (
 
 type NodeCollector struct {
 	StorjCollector
-	nodeInfo        *prometheus.Desc
-	totalDiskSpace  *prometheus.Desc
-	totalBandwidth  *prometheus.Desc
+	nodeInfo       *prometheus.Desc
+	totalDiskSpace *prometheus.Desc
+	totalBandwidth *prometheus.Desc
 }
 
-func NewNodeCollector(client *api.ApiClient) *NodeCollector {
+func NewNodeCollector(clients []*api.ApiClient) *NodeCollector {
 	return &NodeCollector{
-		StorjCollector: StorjCollector{client: client},
+		StorjCollector: StorjCollector{clients: clients},
 		nodeInfo: prometheus.NewDesc(
 			"storj_node_info",
 			"Storj node info",
@@ -48,40 +48,42 @@ func (c *NodeCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *NodeCollector) Collect(ch chan<- prometheus.Metric) {
-	node, err := c.client.Node()
-	if err != nil {
-		log.Printf("Error collecting node metrics: %v", err)
-		return
+	for _, client := range c.clients {
+		node, err := client.Node()
+		if err != nil {
+			log.Printf("Error collecting node metrics: %v", err)
+			return
+		}
+
+		// Collect node info
+		ch <- prometheus.MustNewConstMetric(
+			c.nodeInfo,
+			prometheus.GaugeValue,
+			1,
+			client.NodeID,
+			node.Wallet,
+			strconv.FormatBool(node.UpToDate),
+			node.Version,
+			node.AllowedVersion,
+			node.QuicStatus,
+		)
+
+		// Collect disk space metrics
+		c.collectDiskSpaceMetrics(ch, &node, client.NodeID)
+		// Collect bandwidth metrics
+		c.collectBandwidthMetrics(ch, &node, client.NodeID)
 	}
-
-	// Collect node info
-	ch <- prometheus.MustNewConstMetric(
-		c.nodeInfo,
-		prometheus.GaugeValue,
-		1,
-		c.client.NodeID,
-		node.Wallet,
-		strconv.FormatBool(node.UpToDate),
-		node.Version,
-		node.AllowedVersion,
-		node.QuicStatus,
-	)
-
-	// Collect disk space metrics
-	c.collectDiskSpaceMetrics(ch, &node)
-	// Collect bandwidth metrics
-	c.collectBandwidthMetrics(ch, &node)
 }
 
-func (c *NodeCollector) collectDiskSpaceMetrics(ch chan<- prometheus.Metric, node *models.NodeData) {
+func (c *NodeCollector) collectDiskSpaceMetrics(ch chan<- prometheus.Metric, node *models.NodeData, nodeId string) {
 	diskSpace := node.DiskSpace
-	ch <- prometheus.MustNewConstMetric(c.totalDiskSpace, prometheus.GaugeValue, float64(diskSpace.Used), c.client.NodeID, "used")
-	ch <- prometheus.MustNewConstMetric(c.totalDiskSpace, prometheus.GaugeValue, float64(diskSpace.Available), c.client.NodeID, "available")
-	ch <- prometheus.MustNewConstMetric(c.totalDiskSpace, prometheus.GaugeValue, float64(diskSpace.Trash), c.client.NodeID, "trash")
+	ch <- prometheus.MustNewConstMetric(c.totalDiskSpace, prometheus.GaugeValue, float64(diskSpace.Used), nodeId, "used")
+	ch <- prometheus.MustNewConstMetric(c.totalDiskSpace, prometheus.GaugeValue, float64(diskSpace.Available), nodeId, "available")
+	ch <- prometheus.MustNewConstMetric(c.totalDiskSpace, prometheus.GaugeValue, float64(diskSpace.Trash), nodeId, "trash")
 }
 
-func (c *NodeCollector) collectBandwidthMetrics(ch chan<- prometheus.Metric, node *models.NodeData) {
+func (c *NodeCollector) collectBandwidthMetrics(ch chan<- prometheus.Metric, node *models.NodeData, nodeId string) {
 	bandwidth := node.Bandwidth
-	ch <- prometheus.MustNewConstMetric(c.totalBandwidth, prometheus.GaugeValue, float64(bandwidth.Used), c.client.NodeID, "used")
-	ch <- prometheus.MustNewConstMetric(c.totalBandwidth, prometheus.GaugeValue, float64(bandwidth.Available), c.client.NodeID, "available")
+	ch <- prometheus.MustNewConstMetric(c.totalBandwidth, prometheus.GaugeValue, float64(bandwidth.Used), nodeId, "used")
+	ch <- prometheus.MustNewConstMetric(c.totalBandwidth, prometheus.GaugeValue, float64(bandwidth.Available), nodeId, "available")
 }

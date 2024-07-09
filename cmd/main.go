@@ -21,12 +21,14 @@ func Run() {
 		log.Fatal("No Storj node URLs found in environment variables.")
 	}
 
-	for _, url := range nodeURLs {
-		client := api.NewApiClient(url)
-		prometheus.MustRegister(collectors.NewNodeCollector(client))
-		prometheus.MustRegister(collectors.NewSatelliteCollector(client))
-		prometheus.MustRegister(collectors.NewPayoutCollector(client))
+	clients := make([]*api.ApiClient, len(nodeURLs))
+	for i, url := range nodeURLs {
+		clients[i] = api.NewApiClient(url)
 	}
+	
+	prometheus.MustRegister(collectors.NewNodeCollector(clients))
+	prometheus.MustRegister(collectors.NewSatelliteCollector(clients))
+	prometheus.MustRegister(collectors.NewPayoutCollector(clients))
 
 	port := 8000 // Default port
     if value, exists := os.LookupEnv("EXPORTER_PORT"); exists {
