@@ -1,12 +1,6 @@
 # Storj Exporter for Prometheus
 
-A Go-based exporter to pull information from Storj node APIs and export it for Prometheus monitoring. Supports monitoring multiple nodes, with each metric labeled by `node_id`. The existing python based exporter was pretty heavy on memory and additionally is a bit out of date with the current API responses.
-
-## Features
-
-- **Multi-node Support:** Collect metrics from multiple Storj nodes.
-- **Dynamic Node Configuration:** Specify each node via environment variables.
-- **Labelled Metrics:** Metrics are exported with a `node_id` label.
+A Go-based exporter to pull information from Storj node APIs and export it for Prometheus monitoring. Supports monitoring multiple nodes, with each metric labeled by `node_id`. 
 
 ## Docker Usage
 
