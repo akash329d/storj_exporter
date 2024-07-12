@@ -1398,13 +1398,14 @@
         "cellHeight": "sm",
         "footer": {
           "countRows": false,
+          "enablePagination": false,
           "fields": "",
           "reducer": [
             "sum"
           ],
           "show": false
         },
-        "showHeader": true,
+        "showHeader": false,
         "sortBy": [
           {
             "desc": true,
@@ -2349,6 +2350,6 @@
   "timezone": "browser",
   "title": "Storj Nodes",
   "uid": "fdrdd5g33hkaoc",
-  "version": 43,
+  "version": 44,
   "weekStart": ""
 }
