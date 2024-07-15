@@ -162,31 +162,38 @@ func (c *SatelliteCollector) collectSatelliteMetrics(ch chan<- prometheus.Metric
 	// Storj API reports storageDaily as an array of values with an intervalStart and intervalInHours.
 	// We allow Prometheus to handle the time series aspect of this for us and only return the latest valid value.
 	var newestStorageDaily *models.StorageDaily
-	for _, storageDaily := range data.StorageDaily {
-		if storageDaily.IntervalInHours > 0 {
-			if newestStorageDaily == nil || storageDaily.IntervalStart.After(newestStorageDaily.IntervalStart) {
-				newestStorageDaily = &storageDaily
+
+	if data.StorageDaily != nil {
+		for _, storageDaily := range data.StorageDaily {
+			if storageDaily.IntervalInHours > 0 {
+				if newestStorageDaily == nil || storageDaily.IntervalStart.After(newestStorageDaily.IntervalStart) {
+					newestStorageDaily = &storageDaily
+				}
 			}
 		}
 	}
 
-	ch <- prometheus.MustNewConstMetric(
-		c.metrics["satelliteDailyStorage"],
-		prometheus.GaugeValue,
-		newestStorageDaily.AtRestTotalBytes,
-		nodeID,
-		data.ID,
-		"at_rest_total_bytes",
-	)
+	if newestStorageDaily != nil {
+		ch <- prometheus.MustNewConstMetric(
+			c.metrics["satelliteDailyStorage"],
+			prometheus.GaugeValue,
+			newestStorageDaily.AtRestTotalBytes,
+			nodeID,
+			data.ID,
+			"at_rest_total_bytes",
+		)
 
-	ch <- prometheus.MustNewConstMetric(
-		c.metrics["satelliteDailyStorage"],
-		prometheus.GaugeValue,
-		newestStorageDaily.AtRestTotal,
-		nodeID,
-		data.ID,
-		"at_rest_total",
-	)
+		ch <- prometheus.MustNewConstMetric(
+			c.metrics["satelliteDailyStorage"],
+			prometheus.GaugeValue,
+			newestStorageDaily.AtRestTotal,
+			nodeID,
+			data.ID,
+			"at_rest_total",
+		)
+	} else {
+		log.Printf("No valid StorageDaily data available for node [%s], satellite [%s]", nodeID, satelliteURL)
+	}
 
 	// Storj API reports storageDaily as an array of values with an intervalStart and intervalInHours.
 	// We allow Prometheus to handle the time series aspect of this for us and only return the latest valid value.
@@ -196,34 +203,41 @@ func (c *SatelliteCollector) collectSatelliteMetrics(ch chan<- prometheus.Metric
 			newestBandwidthDaily = &bandwidthDaily
 		}
 	}
-    c.collectDailyBandwidth(ch, nodeID, data.ID, newestBandwidthDaily)
+	c.collectDailyBandwidth(ch, nodeID, data.ID, newestBandwidthDaily)
 
-    // Storj API reports audits as an array of values with windowStart.
+	// Storj API reports audits as an array of values with windowStart.
 	// We allow Prometheus to handle the time series aspect of this for us and only return the latest valid value.
 	var newestAuditHistory *models.Window
-	for _, window := range data.AuditHistory.Windows {
-		if newestAuditHistory == nil || window.WindowStart.After(newestAuditHistory.WindowStart) {
-			newestAuditHistory = &window
+
+	if data.AuditHistory.Windows != nil {
+		for _, window := range data.AuditHistory.Windows {
+			if newestAuditHistory == nil || window.WindowStart.After(newestAuditHistory.WindowStart) {
+				newestAuditHistory = &window
+			}
 		}
 	}
 
-    ch <- prometheus.MustNewConstMetric(
-        c.metrics["satelliteAuditStatus"],
-        prometheus.GaugeValue,
-        float64(newestAuditHistory.OnlineCount),
-        nodeID,
-        data.ID,
-        "online",
-    )
+	if newestAuditHistory != nil {
+		ch <- prometheus.MustNewConstMetric(
+			c.metrics["satelliteAuditStatus"],
+			prometheus.GaugeValue,
+			float64(newestAuditHistory.OnlineCount),
+			nodeID,
+			data.ID,
+			"online",
+		)
 
-    ch <- prometheus.MustNewConstMetric(
-        c.metrics["satelliteAuditStatus"],
-        prometheus.GaugeValue,
-        float64(newestAuditHistory.TotalCount),
-        nodeID,
-        data.ID,
-        "total",
-    )
+		ch <- prometheus.MustNewConstMetric(
+			c.metrics["satelliteAuditStatus"],
+			prometheus.GaugeValue,
+			float64(newestAuditHistory.TotalCount),
+			nodeID,
+			data.ID,
+			"total",
+		)
+	} else {
+		log.Printf("No valid audit history data available for node [%s], satellite [%s]", nodeID, satelliteURL)
+	}
 
 	c.collectPriceModel(ch, nodeID, data.ID, &data.PriceModel)
 
